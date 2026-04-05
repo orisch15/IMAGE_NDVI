@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Python environment
+venv/
+__pycache__/
+*.pyc
+
+# C++ & CMake build artifacts
+build/
+*.so
+*.dylib
+
+# Data & Images
+data/
+*.jp2
+*.tif
+
+# VS Code settings
+.vscode/
