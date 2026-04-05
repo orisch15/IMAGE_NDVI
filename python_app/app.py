@@ -17,7 +17,7 @@ RED_BAND_PATH = '../data/T32UQD_20260318T100741_B04_10m.jp2'
 NIR_BAND_PATH = '../data/T32UQD_20260318T100741_B08_10m.jp2'
 
 # Cache the data loading to avoid reading from disk on every UI update
-@st.cache_data
+@st.cache_data(show_spinner=False) # no need for another loading icon
 def get_cached_satellite_data(green_path, red_path, nir_path):
     return load_bands(green_path, red_path, nir_path)
 
@@ -29,8 +29,12 @@ analysis_type = st.sidebar.radio(
 )
 run_calculation = st.sidebar.button("Run Analysis", type="primary")
 
+info_placeholder = st.empty() #prevent the old info element from being stuck
+
 # Main execution block
 if run_calculation:
+    # 1. Force the placeholder to clear itself instantly
+    info_placeholder.empty()
     with st.spinner("Loading data and executing C++ Engine..."):
         
         # 1. Load Data (Green, Red, NIR)
@@ -43,7 +47,7 @@ if run_calculation:
         if analysis_type == "NDVI (Vegetation Index)":
             result = ndvi_module.calculate_ndvi(red, nir)
             # RdYlGn: Red (low) to Yellow (medium) to Green (high NDVI)
-            im = ax.imshow(result, cmap='RdYlGn', vmin=-1, vmax=1)
+            im = ax.imshow(result, cmap='RdYlGn', vmin=-1, vmax=0.9)
             fig.colorbar(im, ax=ax, label='NDVI Value')
             
             st.subheader("Vegetation Index (NDVI)")
@@ -52,7 +56,7 @@ if run_calculation:
         elif analysis_type == "NDWI (Water Index)":
             result = ndvi_module.calculate_ndwi(green, nir)
             # RdBu: Red (land/negative) to White (zero) to Blue (water/positive)
-            im = ax.imshow(result, cmap='RdBu', vmin=-1, vmax=1)
+            im = ax.imshow(result, cmap='RdBu', vmin=-1, vmax=0.7)
             fig.colorbar(im, ax=ax, label='NDWI Value')
             
             st.subheader("Water Index (NDWI)")
@@ -85,4 +89,4 @@ if run_calculation:
         st.success("Execution completed in Zero-copy mode!")
         
 else:
-    st.info("Select an analysis mode from the sidebar and click 'Run Analysis'.")
+    info_placeholder.info("Select an analysis mode from the sidebar and click 'Run Analysis'.")
