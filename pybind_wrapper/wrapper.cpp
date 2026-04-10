@@ -5,6 +5,7 @@
 
 namespace py = pybind11;
 
+// The wrapper functions below handle the conversion between Python and C++ data structures, call the C++ engine, and return results back to Python in a format that is easy to use
 // Wrapper for NDVI
 py::array_t<float> py_calculate_ndvi(py::array_t<float> red_array, py::array_t<float> nir_array) {
     // 1. Request access to the memory buffers of the NumPy arrays
@@ -60,8 +61,8 @@ py::array_t<float> py_calculate_ndwi(py::array_t<float> green_array, py::array_t
 }
 
 // Wrapper for Pixel Classification
-// Note the return type is uint8_t, matching our memory optimization!
-py::array_t<uint8_t> py_classify_pixels(py::array_t<float> green_array, py::array_t<float> red_array, py::array_t<float> nir_array) {
+// Note: Now returns a tuple containing (uint8_t array, dict of counts)
+py::tuple py_classify_pixels(py::array_t<float> green_array, py::array_t<float> red_array, py::array_t<float> nir_array) { 
     py::buffer_info buf_green = green_array.request();
     py::buffer_info buf_red = red_array.request();
     py::buffer_info buf_nir = nir_array.request();
@@ -80,11 +81,19 @@ py::array_t<uint8_t> py_classify_pixels(py::array_t<float> green_array, py::arra
     py::buffer_info buf_result = result_array.request();
     uint8_t* ptr_result = static_cast<uint8_t*>(buf_result.ptr);
 
-    classify_pixels(ptr_green, ptr_red, ptr_nir, ptr_result, total_pixels);
+    // Call the C++ classification engine, which returns the counts of each class
+    ClassCounts counts = classify_pixels(ptr_green, ptr_red, ptr_nir, ptr_result, total_pixels);
 
     result_array.resize({buf_green.shape[0], buf_green.shape[1]});
 
-    return result_array;
+    // Create a Python dictionary to hold the class counts for summary statistics
+    py::dict counts_dict;
+    counts_dict["no_data"] = counts.no_data;
+    counts_dict["water"] = counts.water;
+    counts_dict["vegetation"] = counts.vegetation;
+    counts_dict["urban"] = counts.urban;
+
+    return py::make_tuple(result_array, counts_dict);
 }
 
 // 7. Pybind11 Module Definition
@@ -95,5 +104,5 @@ PYBIND11_MODULE(ndvi_module, m) {
     // Bind the functions so Python can call them
     m.def("calculate_ndvi", &py_calculate_ndvi, "Calculate NDVI from Red and NIR bands");
     m.def("calculate_ndwi", &py_calculate_ndwi, "Calculate NDWI from Green and NIR bands");
-    m.def("classify_pixels", &py_classify_pixels, "Classify pixels into Water, Vegetation, or Urban/Bare");
+    m.def("classify_pixels", &py_classify_pixels, "Classify pixels and return a tuple of (classified_image_array, pixel_counts_dict)");
 }

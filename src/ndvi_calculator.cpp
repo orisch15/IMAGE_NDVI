@@ -32,8 +32,11 @@ void calculate_ndwi(const float* green_band, const float* nir_band, float* outpu
     }
 }
 
-// Function: Pixel Classification Engine
-void classify_pixels(const float* green_band, const float* red_band, const float* nir_band, uint8_t* output_class, int total_pixels) {
+// Function: Pixel Classification Engine with summary statistics
+ClassCounts classify_pixels(const float* green_band, const float* red_band, const float* nir_band, uint8_t* output_class, int total_pixels) {
+    
+    ClassCounts counts = {0, 0, 0, 0}; // Initialize all counts to zero
+
     for (int i = 0; i < total_pixels; ++i) {
         float green = green_band[i];
         float red = red_band[i];
@@ -42,6 +45,7 @@ void classify_pixels(const float* green_band, const float* red_band, const float
         // Check for missing data in any of the required bands
         if (green + nir == 0.0f || nir + red == 0.0f) {
             output_class[i] = 0; // Class 0: No Data
+            counts.no_data++;
             continue; // Skip to the next pixel
         }
 
@@ -52,12 +56,16 @@ void classify_pixels(const float* green_band, const float* red_band, const float
         // Simple Decision Tree Logic
         if (ndwi > 0.0f) {
             output_class[i] = 1; // Class 1: Water (Water reflects green, absorbs NIR)
+            counts.water++;
         } 
         else if (ndvi > 0.3f) {
             output_class[i] = 2; // Class 2: Vegetation (Vegetation highly reflects NIR)
+            counts.vegetation++;
         } 
         else {
             output_class[i] = 3; // Class 3: Urban / Bare Soil / Other
+            counts.urban++;
         }
     }
+    return counts;
 }
